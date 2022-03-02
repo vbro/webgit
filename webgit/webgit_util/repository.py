@@ -1,6 +1,9 @@
 import re
 import subprocess
+from dataclasses import dataclass
+
 from .constants import (
+    REGEX_BRANCH,
     REGEX_REMOTE_REPO,
     SUPPORTED_WEB_HOSTS,
     REGEX_URL,
@@ -22,6 +25,13 @@ class GitRemoteRepoConnectionType(IntEnum):
 class GitException(Exception):
     def __init__(self, *args, **kwargs):
         super().__init__(self, *args, **kwargs)
+
+
+@dataclass
+class BranchInfo:
+    from_branch: str
+    to_repo: str
+    to_branch: str
 
 
 class GitRemoteRepo:
@@ -92,6 +102,36 @@ def get_repos_from_git_remote_output(remote_output: str) -> List[GitRemoteRepo]:
 
 def get_remote_repos(git_dir: str) -> List[GitRemoteRepo]:
     return get_repos_from_git_remote_output(get_remote_output(git_dir))
+
+
+def get_branch_output(git_dir: str) -> str:
+    p_open = subprocess.Popen(["git", "-C", git_dir, "branch", "-vv"], stdout=subprocess.PIPE, encoding="utf-8")
+    return p_open.stdout.read()
+
+
+def get_branch_info_from_line(branch_output_line: str) -> BranchInfo:
+    branch_regex_match: re.Match = re.search(REGEX_BRANCH, branch_output_line)
+    from_branch: str = branch_regex_match.group(1)
+
+    to_repo_branch: str = branch_regex_match.group(3)
+    to_repo_branch = to_repo_branch[1:-1]  # remove first and last characters, i.e. "[" and "]"
+    to_repo, to_branch = to_repo_branch.split("/", 1)  # split around first "/"
+
+    if to_branch.__contains__(":"):
+        to_branch = to_branch[0:to_branch.index(":", 0)]
+
+    return BranchInfo(from_branch=from_branch, to_repo=to_repo, to_branch=to_branch)
+
+
+def get_branch_info_from_output(branch_output: str) -> BranchInfo:
+    for remote_line in branch_output.split("\n"):
+        remote_line = remote_line.strip()
+        if remote_line.startswith("*"):
+            return get_branch_info_from_line(remote_line)
+
+
+def get_branch_info(git_dir: str) -> BranchInfo:
+    return get_branch_info_from_output(get_branch_output(git_dir))
 
 
 def sanitize_url(git_url: str) -> str:

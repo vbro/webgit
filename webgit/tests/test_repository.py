@@ -1,6 +1,7 @@
 import unittest
 from typing import List
 from webgit.webgit_util.repository import (
+    get_branch_info_from_output,
     get_repos_from_git_remote_output,
     GitRemoteRepo,
     GitRemoteRepoConnectionType,
@@ -91,6 +92,32 @@ class RepositoryTests(unittest.TestCase):
         not_git_repo: str = "fatal: not a git repository (or any of the parent directories): .git"
         with self.assertRaises(GitException):
             get_repos_from_git_remote_output(not_git_repo)
+
+    def test_get_branch_info(self):
+
+        branch_vv_output = "* local_branch a11bce2 [upstream/main] commit message"
+        branch_info = get_branch_info_from_output(branch_vv_output)
+        self.assertEqual("local_branch", branch_info.from_branch)
+        self.assertEqual("upstream", branch_info.to_repo)
+        self.assertEqual("main", branch_info.to_branch)
+
+        branch_vv_output = "* local_branch a11bce2 [upstream/main: ahead 1] commit message: from user/pr123 "
+        branch_info = get_branch_info_from_output(branch_vv_output)
+        self.assertEqual("local_branch", branch_info.from_branch)
+        self.assertEqual("upstream", branch_info.to_repo)
+        self.assertEqual("main", branch_info.to_branch)
+
+        branch_vv_output = "* product-6.2 789abc1 [origin/6.2] Product 6.2.5"
+        branch_info = get_branch_info_from_output(branch_vv_output)
+        self.assertEqual("product-6.2", branch_info.from_branch)
+        self.assertEqual("origin", branch_info.to_repo)
+        self.assertEqual("6.2", branch_info.to_branch)
+
+        branch_vv_output = "* local/branch a11bce2 [origin/main/branch] commit message"
+        branch_info = get_branch_info_from_output(branch_vv_output)
+        self.assertEqual("local/branch", branch_info.from_branch)
+        self.assertEqual("origin", branch_info.to_repo)
+        self.assertEqual("main/branch", branch_info.to_branch)
 
 
 if __name__ == '__main__':

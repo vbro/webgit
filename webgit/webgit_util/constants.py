@@ -8,11 +8,13 @@ ENV_DEFAULT_UPSTREAM_REPO_NAME: str = "WEBGIT_DEFAULT_UPSTREAM_REPO_NAME"
 
 ENV_DEFAULT_ORIGIN_REPO_NAME: str = "WEBGIT_DEFAULT_ORIGIN_REPO_NAME"
 
+REGEX_BRANCH = r'\*\s+(\S+)\s+([0-9a-f]{7,40})\s+(\[(\S+)\/(\S+)?.*\])?.*'
+
 REGEX_REMOTE_REPO: str = r'(\w+)\s+(https\:\/\/|git@)(\S+)\s+\((\w+)\)'
 
 REGEX_URL: str = r'(.*)\/(.*)\/(.*)'
 
-REGEX_COMMIT_HASH: str = r'^[a-f0-9]{7,40}$'
+REGEX_COMMIT_HASH: str = r'^[0-9a-f]{7,40}$'
 
 REGEX_PULL_REQUEST_HASH: str = r'^(#?)(\d+)$'
 
@@ -45,8 +47,8 @@ WEB_ADDRESS_TEMPLATES: dict = {
     },
 
     "pr": {
-        "github": "https://{}/pull/{}",
-        "gitlab": "https://{}/-/merge_requests/{}",
+        "github": "https://{}/compare/{}...{}:{}?expand=1",
+        "gitlab": "https://{}/-/compare?from={}&to={}",
     },
 
     "prs": {

@@ -3,7 +3,7 @@ import os
 import re
 import subprocess
 from argparse import ArgumentParser, Namespace, RawTextHelpFormatter
-from typing import List
+from typing import List, Tuple, Optional
 
 from .constants import (
     ENV_DEFAULT_ORIGIN_REPO_NAME,
@@ -15,6 +15,7 @@ from .constants import (
 )
 
 from .repository import (
+    get_branch_info,
     GitException,
     GitRemoteRepo,
     get_remote_repos,
@@ -33,9 +34,9 @@ def _create_argument_parser() -> ArgumentParser:
         "repo    - open webpage for repo (default behavior)",
         "org     - open webpage for organization",
         "user    - open webpage for user",
-        "pr      - open webpage to create a pull request page",
         "prs     - open webpage for all pull requests",
         "myprs [username]    - open webpage for pull requests for specified user",
+        "pr [origin/feature] [upstream/main]     - open webpage for pull request creation",
         "issue [number]      - open webpage for specified issue",
         "issues   - open webpage for all issue",
         "tree [commit | branch | tag] - open webpage for commit, branch or tag tree",
@@ -75,9 +76,12 @@ def run_program(parameters: List[str]):
     web_address: str = ""
     git_dir: str = args_namespace.path or os.getcwd()
     git_repos: List[GitRemoteRepo] = get_remote_repos(git_dir)
-    relevant_remote: GitRemoteRepo = _get_relevant_remote(git_repos, args_namespace.remote)
-    web_host: str = relevant_remote.web_host
-    remote_url: str = relevant_remote.url
+    upstream_remote: GitRemoteRepo = _get_upstream_repo(
+        git_repos,
+        default_remote_name=args_namespace.remote,
+    )
+    web_host: str = upstream_remote.web_host
+    remote_url: str = upstream_remote.url
 
     if webgit_command == "repo":
         web_address = "https://{}".format(remote_url)
@@ -88,6 +92,36 @@ def run_program(parameters: List[str]):
 
     elif webgit_command == "commits":
         web_address = WEB_ADDRESS_TEMPLATES["commits"][web_host].format(remote_url)
+
+    elif webgit_command == "pr":
+        from_repo_name, from_branch_name = _split_repo_branch(webgit_commands[1] if len(webgit_commands) > 1 else None)
+        to_repo_name, to_branch_name = _split_repo_branch(webgit_commands[2] if len(webgit_commands) > 2 else None)
+
+        if not (from_branch_name and to_branch_name):
+            branch_info = get_branch_info(git_dir)
+            if not from_branch_name:
+                from_branch_name = branch_info.from_branch
+            if not to_repo_name:
+                to_repo_name = branch_info.to_repo
+            if not to_branch_name:
+                to_branch_name = branch_info.to_branch
+
+        if from_repo_name == upstream_remote.name:
+            from_repo = upstream_remote
+        else:
+            from_repo = _get_origin_repo(git_repos, from_repo_name)
+
+        if to_repo_name == upstream_remote.name:
+            to_repo = upstream_remote
+        else:
+            to_repo = _get_upstream_repo(git_repos, to_repo_name)
+
+        if web_host == "gitlab":
+            web_address = WEB_ADDRESS_TEMPLATES["pr"][web_host].format(to_repo.url, from_branch_name, to_branch_name)
+        else:
+            web_address = WEB_ADDRESS_TEMPLATES["pr"][web_host].format(
+                to_repo.url, to_branch_name, from_repo.org_or_user, from_branch_name
+            )
 
     elif webgit_command == "prs":
         web_address = WEB_ADDRESS_TEMPLATES["prs"][web_host].format(remote_url)
@@ -172,13 +206,55 @@ def _get_relevant_remote(git_repos: List[GitRemoteRepo], remote_name: str) -> Gi
     return git_repos[0]
 
 
-def _get_origin_repo(git_repos: List[GitRemoteRepo]) -> (GitRemoteRepo or None):
-    origin_repo_name = os.environ.get(ENV_DEFAULT_ORIGIN_REPO_NAME) or "origin"
-    origin_repos: List[GitRemoteRepo] = [r for r in git_repos if r.name == origin_repo_name]
-    if len(origin_repos) > 0:
-        return origin_repos[0]
+def _get_remote_repo(
+        git_repos: List[GitRemoteRepo],
+        remote_name: Optional[str] = None,
+        default_env_var_key: Optional[str] = None,
+        default_remote_name: Optional[str] = None,
+        no_match_default_first: bool = True,
+) -> Optional[GitRemoteRepo]:
+
+    if len(git_repos) == 0:
+        raise GitException("")
+
+    remote_repo_name: str = (
+            remote_name or
+            (os.getenv(default_env_var_key) if default_env_var_key else None) or
+            default_remote_name
+    )
+
+    git_repo: GitRemoteRepo
+    if remote_repo_name:
+        matching_git_repos = [r for r in git_repos if r.name == remote_repo_name]
+        if len(matching_git_repos) > 0:
+            return matching_git_repos[0]
+
+    if no_match_default_first:
+        return git_repos[0]
     else:
         return None
+
+
+def _get_origin_repo(
+        git_repos: List[GitRemoteRepo],
+        default_remote_name: Optional[str] = None
+) -> Optional[GitRemoteRepo]:
+    return _get_remote_repo(
+        git_repos,
+        default_env_var_key=ENV_DEFAULT_ORIGIN_REPO_NAME,
+        default_remote_name=(default_remote_name if default_remote_name else "origin")
+    )
+
+
+def _get_upstream_repo(
+        git_repos: List[GitRemoteRepo],
+        default_remote_name: Optional[str] = None
+) -> Optional[GitRemoteRepo]:
+    return _get_remote_repo(
+        git_repos,
+        default_env_var_key=ENV_DEFAULT_UPSTREAM_REPO_NAME,
+        default_remote_name=(default_remote_name if default_remote_name else "upstream")
+    )
 
 
 def _get_origin_repo_user(git_repos: List[GitRemoteRepo]) -> (GitRemoteRepo or None):
@@ -187,3 +263,13 @@ def _get_origin_repo_user(git_repos: List[GitRemoteRepo]) -> (GitRemoteRepo or N
         return origin_repo.org_or_user
     else:
         return None
+
+
+def _split_repo_branch(repo_branch: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    if not repo_branch:
+        return None, None
+    if repo_branch.__contains__("/"):
+        repo_branch_split: List[str] = repo_branch.split("/")
+        return repo_branch_split[0], repo_branch_split[1]
+    else:
+        return None, repo_branch
