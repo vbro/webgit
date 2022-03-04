@@ -119,6 +119,13 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual("origin", branch_info.to_repo)
         self.assertEqual("main/branch", branch_info.to_branch)
 
+        branch_vv_output = "* main 7882f1f add support for creating pull requests"
+        branch_info = get_branch_info_from_output(branch_vv_output)
+        self.assertEqual("main", branch_info.from_branch)
+        self.assertEqual("upstream", branch_info.to_repo)
+        self.assertEqual("main", branch_info.to_branch)
+        print(branch_info)
+
 
 if __name__ == '__main__':
     unittest.main()

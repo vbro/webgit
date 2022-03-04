@@ -114,8 +114,11 @@ def get_branch_info_from_line(branch_output_line: str) -> BranchInfo:
     from_branch: str = branch_regex_match.group(1)
 
     to_repo_branch: str = branch_regex_match.group(3)
-    to_repo_branch = to_repo_branch[1:-1]  # remove first and last characters, i.e. "[" and "]"
-    to_repo, to_branch = to_repo_branch.split("/", 1)  # split around first "/"
+    if to_repo_branch:
+        to_repo_branch = to_repo_branch[1:-1]  # remove first and last characters, i.e. "[" and "]"
+        to_repo, to_branch = to_repo_branch.split("/", 1)  # split around first "/"
+    else:
+        to_repo, to_branch = "upstream", from_branch
 
     if to_branch.__contains__(":"):
         to_branch = to_branch[0:to_branch.index(":", 0)]
