@@ -124,7 +124,7 @@ def run_program(parameters: List[str]):
             )
 
     elif webgit_command == "prs":
-        web_address = WEB_ADDRESS_TEMPLATES["prs"][web_host].format(remote_url)
+        web_address = WEB_ADDRESS_TEMPLATES["view_prs"][web_host].format(remote_url)
 
     elif webgit_command == "myprs":
         git_user: str = (
@@ -134,7 +134,7 @@ def run_program(parameters: List[str]):
                 getpass.getuser() or
                 _get_origin_repo_user(git_repos)
         )
-        web_address = WEB_ADDRESS_TEMPLATES["myprs"][web_host].format(remote_url, git_user)
+        web_address = WEB_ADDRESS_TEMPLATES["my_prs"][web_host].format(remote_url, git_user)
 
     elif webgit_command in ["issue", "issues"]:
         issue_number: str = webgit_commands[1] if len(webgit_commands) > 1 else None
@@ -170,7 +170,7 @@ def run_program(parameters: List[str]):
             web_address = WEB_ADDRESS_TEMPLATES["commit"][web_host].format(remote_url, webgit_command)
 
     elif re.match(REGEX_PULL_REQUEST_HASH, webgit_command):
-        web_address = WEB_ADDRESS_TEMPLATES["pr"][web_host].format(
+        web_address = WEB_ADDRESS_TEMPLATES["view_pr"][web_host].format(
             remote_url,
             webgit_command.replace("#", "")
         )

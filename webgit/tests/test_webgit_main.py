@@ -49,6 +49,14 @@ class WebGitMainTests(unittest.TestCase):
         std_out: str = mock_stdout.getvalue()
         self.assertEqual("https://github.company.io/org/project/commit/12ab45c\n", std_out)
 
+    @patch("os.getcwd", new_callable=mock_getcwd_function)
+    @patch("sys.stdout", new_callable=io.StringIO)
+    def test_commit_digits_local_dir(self, mock_stdout: io.StringIO, mock_getcwd):
+        command_line.run_program("12345678 -a".split())
+        repository.get_remote_output.assert_called_once_with(GIT_DIR)
+        std_out: str = mock_stdout.getvalue()
+        self.assertEqual("https://github.company.io/org/project/commit/12345678\n", std_out)
+
     @patch('sys.stdout', new_callable=io.StringIO)
     def test_commit_c_dir(self, mock_stdout: io.StringIO):
         project_2_dir: str = "/Users/user/org2/project2"
@@ -72,6 +80,61 @@ class WebGitMainTests(unittest.TestCase):
         repository.get_remote_output.assert_called_once_with(GIT_DIR)
         std_out: str = mock_stdout.getvalue()
         self.assertEqual("https://github.company.io/org/project/issues/123\n", std_out)
+
+    @patch("os.getcwd", new_callable=mock_getcwd_function)
+    @patch('sys.stdout', new_callable=io.StringIO)
+    def test_view_pr(self, mock_stdout: io.StringIO, mock_getcwd):
+        command_line.run_program("12345 -a".split())
+        repository.get_remote_output.assert_called_once_with(GIT_DIR)
+        std_out: str = mock_stdout.getvalue()
+        self.assertEqual(
+            "https://github.company.io/org/project/pull/12345\n",
+            std_out
+        )
+
+    @patch("os.getcwd", new_callable=mock_getcwd_function)
+    @patch('sys.stdout', new_callable=io.StringIO)
+    def test_view_pr_hash(self, mock_stdout: io.StringIO, mock_getcwd):
+        command_line.run_program("#12345678 -a".split())
+        repository.get_remote_output.assert_called_once_with(GIT_DIR)
+        std_out: str = mock_stdout.getvalue()
+        self.assertEqual(
+            "https://github.company.io/org/project/pull/12345678\n",
+            std_out
+        )
+
+    @patch("os.getcwd", new_callable=mock_getcwd_function)
+    @patch('sys.stdout', new_callable=io.StringIO)
+    def test_view_prs(self, mock_stdout: io.StringIO, mock_getcwd):
+        command_line.run_program("prs -a".split())
+        repository.get_remote_output.assert_called_once_with(GIT_DIR)
+        std_out: str = mock_stdout.getvalue()
+        self.assertEqual(
+            "https://github.company.io/org/project/pulls\n",
+            std_out
+        )
+
+    @patch("os.getcwd", new_callable=mock_getcwd_function)
+    @patch('sys.stdout', new_callable=io.StringIO)
+    def test_view_my_prs_user_command_arg(self, mock_stdout: io.StringIO, mock_getcwd):
+        command_line.run_program("myprs user1 -a".split())
+        repository.get_remote_output.assert_called_once_with(GIT_DIR)
+        std_out: str = mock_stdout.getvalue()
+        self.assertEqual(
+            "https://github.company.io/org/project/pulls?q=is%3Apr+author%3Auser1\n",
+            std_out
+        )
+
+    @patch("os.getcwd", new_callable=mock_getcwd_function)
+    @patch('sys.stdout', new_callable=io.StringIO)
+    def test_view_my_prs_user_param_arg(self, mock_stdout: io.StringIO, mock_getcwd):
+        command_line.run_program("myprs -u user2 -a".split())
+        repository.get_remote_output.assert_called_once_with(GIT_DIR)
+        std_out: str = mock_stdout.getvalue()
+        self.assertEqual(
+            "https://github.company.io/org/project/pulls?q=is%3Apr+author%3Auser2\n",
+            std_out
+        )
 
     @patch("webgit.webgit_util.repository.get_branch_output", new_callable=mock_branch_output_function)
     @patch("os.getcwd", new_callable=mock_getcwd_function)

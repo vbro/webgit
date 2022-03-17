@@ -51,12 +51,17 @@ WEB_ADDRESS_TEMPLATES: dict = {
         "gitlab": "https://{}/-/compare?from={}&to={}",
     },
 
-    "prs": {
+    "view_pr": {
+        "github": "https://{}/pull/{}",
+        "gitlab": "https://{}/-/merge_requests/{}",
+    },
+
+    "view_prs": {
         "github": "https://{}/pulls",
         "gitlab": "https://{}/-/merge_requests",
     },
 
-    "myprs": {
+    "my_prs": {
         "github": "https://{}/pulls?q=is%3Apr+author%3A{}",
         "gitlab": "https://{}/-/merge_requests?scope=all&state=all&author_username={}",
     },
